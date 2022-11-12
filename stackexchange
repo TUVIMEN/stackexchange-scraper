@@ -1,0 +1,211 @@
+#!/bin/bash
+# by Dominik Stanisław Suchora <suchora.dominik7@gmail.com>
+# License: GNU GPLv3
+
+shopt -s extglob
+
+declare url delay='0.5' maxprocs='3' first='1' random='1' last
+
+IFS=$'\n'
+
+ucurl() {
+    curl -L -g -s --user-agent 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/5.15.2 Chrome/87.0.4280.144 Safari/537.36' -H 'Accept-Encoding: gzip, deflate' --compressed "$@"
+}
+
+c_person() {
+    local -r tin="$(cat)"
+    echo "$(hgrep '.* @l[0] @M"<" @p"%i\n"' <<< "$tin" | head -n1 | sed 's/^ *$//')" #name
+    echo "$(hgrep 'span +class="reputation-score" @p"%i\n"' <<< "$tin")" #reputation
+    echo "$(hgrep 'span +title=".* gold badges"; span +class="badgecount" @p"%i\n"' <<< "$tin")" #gbadges
+    echo "$(hgrep 'span +title=".* silver badges"; span +class="badgecount" @p"%i\n"' <<< "$tin")" #sbadges
+    echo "$(hgrep 'span +title=".* bronze badges"; span +class="badgecount" @p"%i\n"' <<< "$tin")" #bbadges
+}
+
+c_comments() {
+    for u in $(cat)
+    do
+        {
+        echo "$(hgrep 'span +class="comment-copy" @p"%i\n"' <<< "$u")" #content
+        echo "$(hgrep 'span +class="comment-date"; span +title @p"%(title)a\n"' <<< "$u" | sed 's/, L.*//')" #date
+        echo "$(hgrep 'div; a @p"%i\n"' <<< "$u")" #author
+        echo "$(hgrep 'div; a @p"%(title)a\n"' <<< "$u" | sed 's/,//g; s/ .*//')" #reputation
+        #echo "$(hgrep 'span +title="number of .*" @p"%i\n"' <<< "$u")" #rating
+        } | sed ':x;$!{N;s/\n/\f/;bx}'
+    done
+}
+
+get_posts() {
+    for j in $(tr -d '\r\n\t\a' < '/dev/stdin' | hgrep 'div +class="post-layout" @p"%A\n"')
+    do
+        {
+        echo "$(hgrep 'div +class="js-vote-count flex--item d-flex fd-column ai-center fc-black-500 fs-title" @p"%(data-value)a\n"' <<< "$j")" #rating
+        echo "$(hgrep 'div +class="user-info .*" @M"edited"; span +class="relativetime" @p"%(title)a\n"' <<< "$j")" #date
+        echo "$(hgrep 'div +class="user-info .*" @m"edited"; span +class="relativetime" @p"%(title)a\n"' <<< "$j")" #edited
+        echo "$(hgrep 'div +class="user-info .*" @M"edited"; div +class="user-details" @p"%i\n"' <<< "$j" | c_person | sed ':x; $!{N;s/\n/\a/;bx}')" #author
+        echo "$(hgrep 'div +class="user-info .*" @m"edited"; div +class="user-details" @p"%i\n"' <<< "$j" | c_person | sed ':x; $!{N;s/\n/\a/;bx}')" #editor
+        echo "$(hgrep 'div +class="s-prose js-post-body" @p"%i\n"' <<< "$j")" #content
+        echo "$(hgrep 'div +class="comment-body js-comment-edit-hide" @p"%i\n"' <<< "$j" | c_comments | sed ':x; $!{N;s/\n/\a/;bx}')" #comments
+        } | sed ':x;$!{N;s/\n/\t/;bx}'
+    done #posts
+}
+
+get_page() {
+    local -r t="$(ucurl "$1")"
+    local _tmp1
+    echo "$1" #link
+    echo "$(hgrep 'h1 +itemprop="name"; a @p"%i\n"' <<< "$t")" #title
+    _tmp1="$(hgrep 'div +class="flex--item ws-nowrap mb8" @p"%(title)a\n"' <<< "$t")"
+    echo "${_tmp1//[^0-9]/}" #views
+    echo "$(hgrep 'div +class="js-bookmark-count mt4" @p"%(data-value)a\n"' <<< "$t")" #bookmarks
+    echo "$(hgrep 'div +class="d-flex ps-relative fw-wrap"; a +class="post-tag" @p"%i\n"' <<< "$t" | sed ':x; $!{N;s/\n/\t/;bx}')" #tags
+    get_posts <<< "$t"
+    for n in $(hgrep 'div +class="s-pagination site1 themed pager-answers"; a +rel="" +href @p"'"$url"'%(href)a\n"' <<< "$t" | sort -u)
+    do
+        ucurl "$n" | get_posts
+    done
+}
+
+get_json() {
+    local -r rh="${1#*/questions/}"
+    local -r name="${rh%%/*}"
+    [ -e "$name" ] && return
+    get_page "$1" | jq -RnMcs '
+        (inputs | split("\n")) as $lines | 
+
+        .["link"]=$lines[0] |
+        .["title"]=$lines[1] |
+        .["views"]=$lines[2] |
+        .["bookmarks"]=$lines[3] |
+        .["tags"]=($lines[4] | split("\t")) |
+        .["posts"]=($lines[5:-1] | map(split("\t") | {
+            ("rating"):.[0],
+            ("date"):.[1],
+            ("edited"):.[2],
+            ("author"):(.[3] | split("") | {
+                ("name"):.[0],
+                ("reputation"):.[1],
+                ("gbadge"):.[2],
+                ("sbadge"):.[3],
+                ("bbadge"):.[4]
+            }),
+            ("editor"):(.[4] | split("") | {
+                ("name"):.[0],
+                ("reputation"):.[1],
+                ("gbadge"):.[2],
+                ("sbadge"):.[3],
+                ("bbadge"):.[4]
+            }),
+            ("content"):.[5],
+            ("comments"):(.[6] | split("") | map(split("\f") | {
+                ("content"):.[0],
+                ("date"):.[1],
+                ("author"):.[2],
+                ("reputation"):.[3]
+            }))
+        }))' > "$name"
+    sleep "$delay" "$((RANDOM%random))"
+}
+
+get_question_list() {
+    local g t l
+    g="$first"
+    t="$(ucurl "$1?tab=newest&pagesize=50&page=$g")"
+    l="$(hgrep 'a +class="s-pagination--item js-pagination-item" @m"^[0-9][0-9]*$" @p"%i\n"' <<< "$t" | tail -n1)"
+    [ -z "$last" ] && last="$l"
+    [ "$last" -gt "$l" ] && last="$l"
+    echo "$last"
+    while :
+    do
+        #[ -z "$(hgrep 'a +class="s-pagination--item js-pagination-item" +rel="next"' <<< "$t")" ] && break
+        for i in $(hgrep 'a +class="s-link" @p"'"$url"'%(href)a\n"' <<< "$t")
+        do
+            [ "$(jobs | wc -l)" -gt "$maxprocs" ] && wait %%
+            {
+            get_json "$i"
+            } &
+            echo "$i"
+        done
+        wait
+        
+        #echo "$links" | parallel -j "$maxprocs" 'get_json {}'
+    
+        ((g++))
+        [ "$g" -gt "$last" ] && break
+        sleep "$delay" "$((RANDOM%random))"
+        echo "$1?tab=newest&pagesize=50&page=$g"
+        t="$(ucurl "$1?tab=newest&pagesize=50&page=$g")"
+    done
+}
+
+get_tags() {
+    local g t l
+    g="$first"
+    t="$(ucurl "$1?tab=populart&pagesize=50&page=$g")"
+    l="$(hgrep 'a +class="s-pagination--item js-pagination-item" @m"^[0-9][0-9]*$" @p"%i\n"' <<< "$t" | tail -n1)"
+    [ -z "$last" ] && last="$l"
+    [ "$last" -gt "$l" ] && last="$l"
+    echo "$last"
+    while :
+    do
+        for c in $(hgrep 'a +class="post-tag" +href @p"'"$url"'%(href)a\n"' <<< "$t")
+        do
+            get_question_list "$c"
+        done
+        ((g++))
+        [ "$g" -gt "$last" ] && break
+        sleep "$delay" "$((RANDOM%random))"
+        echo "$1?tab=newest&pagesize=50&page=$g"
+        t="$(ucurl "$1?tab=popular&pagesize=50&page=$g")"
+    done
+}
+
+usage() {
+    printf '%s [OPTION]... [DIR] [URL]...\n\n' "${0##*/}"
+    printf 'Options:\n  -d,\t--delay DELAY\tset delay in sleep format, by default 0.5 seconds\n'
+    printf '  -r,\t--random NUM\tset number of randomness which will be added to delay, must be integer\n'
+    printf '  -p,\t--max-procs NUM\tset number of processes to run at a time, by default set to 3\n'
+    printf '  -f,\t--first NUM\tset first page\n'
+    printf '  -l,\t--last NUM\tset last page\n'
+    printf '  -h,\t--help\t\tshow this message\n\n'
+    printf 'Note that options ought to be specified before the directory.\n'
+}
+
+#export -f ucurl get_json
+#export PARALLEL_SHELL="$(type -p 'bash')"
+
+while [ "$#" -gt 0 ]
+do
+    case "$1" in
+        -d|--delay) delay="$2"; shift;;
+        -r|--random) random="$2"; random="$((random+1))"; shift;;
+        -p|--max-procs) maxprocs="$2"; shift;;
+        -f|--first) first="$2"; shift;;
+        -l|--last) last="$2"; shift;;
+        -h|--help) usage >&2; exit;;
+        -*) usage >&2; exit 1;;
+        *) break;;
+    esac
+    shift
+done
+
+[ -n "$last" ] && [ "$first" -gt "$last" ] && exit 0;
+
+[ "$#" -eq 0 ] && { usage >&2; exit 1; }
+cd "$1" || { usage >&2; exit 1; }
+shift
+
+while [ "$#" -gt 0 ]
+do
+    url="$(sed -E 's/(http[s]:\/\/([[:alnum:]]+\.)+[[:alpha:]]+).*/\1/' <<< "$1")"
+    case "$1" in
+        http[s]://+(+([[:alnum:]]).)+([[:alpha:]])/questions/tagged/+([[:alnum:]-])?(\?*))
+            get_question_list "${1%%\?*}";;
+        http[s]://+(+([[:alnum:]]).)+([[:alpha:]])?([/]?(questions?(\?*))))
+            get_question_list "$url/questions";;
+        http[s]://+(+([[:alnum:]]).)+([[:alpha:]])/questions/+([[:digit:]])?([/]?(*)))
+            get_json "$1";;
+        http[s]://+(+([[:alnum:]]).)+([[:alpha:]])?([/]?(tags?(\?*))))
+            get_tags "$url/tags";;
+    esac
+    shift
+done
