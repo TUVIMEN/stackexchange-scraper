@@ -27,7 +27,7 @@ All supported sites can be found [here](https://stackexchange.com/sites)
 
 ## Json format
 
-Here's [json](example.json) from one of the most popular issues on [stackoverflow](https://stackoverflow.com/questions/927358/how-do-i-undo-the-most-recent-local-commits-in-git):
+Here's [json](example.json) from one of the most popular issues on [stackoverflow](https://stackoverflow.com/questions/927358/how-do-i-undo-the-most-recent-local-commits-in-git)
 
 ## Usage
 
