@@ -198,13 +198,13 @@ while [ "$#" -gt 0 ]
 do
     url="$(sed -E 's/(http[s]:\/\/([[:alnum:]]+\.)+[[:alpha:]]+).*/\1/' <<< "$1")"
     case "$1" in
-        http[s]://+(+([[:alnum:]]).)+([[:alpha:]])/questions/tagged/+([[:alnum:]-])?(\?*))
+        http(s)://+(+([[:alnum:]]).)+([[:alpha:]])/questions/tagged/+([[:alnum:]-])?(\?*))
             get_question_list "${1%%\?*}";;
-        http[s]://+(+([[:alnum:]]).)+([[:alpha:]])?([/]?(questions?(\?*))))
+        http(s)://+(+([[:alnum:]]).)+([[:alpha:]])?([/]?(questions?(\?*))))
             get_question_list "$url/questions";;
-        http[s]://+(+([[:alnum:]]).)+([[:alpha:]])/questions/+([[:digit:]])?([/]?(*)))
+        http?(s)://+(+([[:alnum:]]).)+([[:alpha:]])/questions/+([[:digit:]])?([/]?(*)))
             get_json "$1";;
-        http[s]://+(+([[:alnum:]]).)+([[:alpha:]])?([/]?(tags?(\?*))))
+        http?(s)://+(+([[:alnum:]]).)+([[:alpha:]])?([/]?(tags?(\?*))))
             get_tags "$url/tags";;
     esac
     shift
