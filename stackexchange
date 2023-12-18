@@ -35,7 +35,7 @@ c_comments() {
 }
 
 get_posts() {
-    for j in $(tr -d '\r\n\t\a' < '/dev/stdin' | hgrep 'div +class="post-layout *" @p"%A\n"')
+    for j in $(tr -d '\r\n\t\a' < '/dev/stdin' | hgrep 'div +class="post-layout *" @p"%t\n"')
     do
         {
         echo "$(hgrep 'div +class="js-vote-count flex--item d-flex fd-column ai-center fc-black-500 fs-title" @p"%(data-value)a\n"' <<< "$j")" #rating
