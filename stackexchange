@@ -14,37 +14,37 @@ ucurl() {
 
 c_person() {
     local -r tin="$(cat)"
-    echo "$(hgrep '.* @l[0] @M"<" @p"%i\n"' <<< "$tin" | head -n1 | sed 's/^ *$//')" #name
-    echo "$(hgrep 'span +class="reputation-score" @p"%i\n"' <<< "$tin")" #reputation
-    echo "$(hgrep 'span +title=".* gold badges"; span +class="badgecount" @p"%i\n"' <<< "$tin")" #gbadges
-    echo "$(hgrep 'span +title=".* silver badges"; span +class="badgecount" @p"%i\n"' <<< "$tin")" #sbadges
-    echo "$(hgrep 'span +title=".* bronze badges"; span +class="badgecount" @p"%i\n"' <<< "$tin")" #bbadges
+    echo "$(hgrep '.* @l[0] @M"<" | "%i\n"' <<< "$tin" | head -n1 | sed 's/^ *$//')" #name
+    echo "$(hgrep 'span +class="reputation-score" | "%i\n"' <<< "$tin")" #reputation
+    echo "$(hgrep 'span +title=".* gold badges"; span +class="badgecount" | "%i\n"' <<< "$tin")" #gbadges
+    echo "$(hgrep 'span +title=".* silver badges"; span +class="badgecount" | "%i\n"' <<< "$tin")" #sbadges
+    echo "$(hgrep 'span +title=".* bronze badges"; span +class="badgecount" | "%i\n"' <<< "$tin")" #bbadges
 }
 
 c_comments() {
     for u in $(cat)
     do
         {
-        echo "$(hgrep 'span +class="comment-copy" @p"%i\n"' <<< "$u")" #content
-        echo "$(hgrep 'span +class="comment-date"; span +title @p"%(title)a\n"' <<< "$u" | sed 's/, L.*//')" #date
-        echo "$(hgrep 'div; a @p"%i\n"' <<< "$u")" #author
-        echo "$(hgrep 'div; a @p"%(title)a\n"' <<< "$u" | sed 's/,//g; s/ .*//')" #reputation
-        #echo "$(hgrep 'span +title="number of .*" @p"%i\n"' <<< "$u")" #rating
+        echo "$(hgrep 'span +class="comment-copy" | "%i\n"' <<< "$u")" #content
+        echo "$(hgrep 'span +class="comment-date"; span +title | "%(title)a\n"' <<< "$u" | sed 's/, L.*//')" #date
+        echo "$(hgrep 'div; a | "%i\n"' <<< "$u")" #author
+        echo "$(hgrep 'div; a | "%(title)a\n"' <<< "$u" | sed 's/,//g; s/ .*//')" #reputation
+        #echo "$(hgrep 'span +title="number of .*" | "%i\n"' <<< "$u")" #rating
         } | sed ':x;$!{N;s/\n/\f/;bx}'
     done
 }
 
 get_posts() {
-    for j in $(tr -d '\r\n\t\a' < '/dev/stdin' | hgrep 'div +class="post-layout *" @p"%t\n"')
+    for j in $(tr -d '\r\n\t\a' < '/dev/stdin' | hgrep 'div +class="post-layout *" | "%t\n"')
     do
         {
-        echo "$(hgrep 'div +class="js-vote-count flex--item d-flex fd-column ai-center fc-black-500 fs-title" @p"%(data-value)a\n"' <<< "$j")" #rating
-        echo "$(hgrep 'div +class="user-info .*" @M"edited"; span +class="relativetime" @p"%(title)a\n"' <<< "$j")" #date
-        echo "$(hgrep 'div +class="user-info .*" @m"edited"; span +class="relativetime" @p"%(title)a\n"' <<< "$j")" #edited
-        echo "$(hgrep 'div +class="user-info .*" @M"edited"; div +class="user-details" @p"%i\n"' <<< "$j" | c_person | sed ':x; $!{N;s/\n/\a/;bx}')" #author
-        echo "$(hgrep 'div +class="user-info .*" @m"edited"; div +class="user-details" @p"%i\n"' <<< "$j" | c_person | sed ':x; $!{N;s/\n/\a/;bx}')" #editor
-        echo "$(hgrep 'div +class="s-prose js-post-body" @p"%i\n"' <<< "$j")" #content
-        echo "$(hgrep 'div +class="comment-body js-comment-edit-hide" @p"%i\n"' <<< "$j" | c_comments | sed ':x; $!{N;s/\n/\a/;bx}')" #comments
+        echo "$(hgrep 'div +class="js-vote-count flex--item d-flex fd-column ai-center fc-black-500 fs-title" | "%(data-value)a\n"' <<< "$j")" #rating
+        echo "$(hgrep 'div +class="user-info .*" @M"edited"; span +class="relativetime" | "%(title)a\n"' <<< "$j")" #date
+        echo "$(hgrep 'div +class="user-info .*" @m"edited"; span +class="relativetime" | "%(title)a\n"' <<< "$j")" #edited
+        echo "$(hgrep 'div +class="user-info .*" @M"edited"; div +class="user-details" | "%i\n"' <<< "$j" | c_person | sed ':x; $!{N;s/\n/\a/;bx}')" #author
+        echo "$(hgrep 'div +class="user-info .*" @m"edited"; div +class="user-details" | "%i\n"' <<< "$j" | c_person | sed ':x; $!{N;s/\n/\a/;bx}')" #editor
+        echo "$(hgrep 'div +class="s-prose js-post-body" | "%i\n"' <<< "$j")" #content
+        echo "$(hgrep 'div +class="comment-body js-comment-edit-hide" | "%i\n"' <<< "$j" | c_comments | sed ':x; $!{N;s/\n/\a/;bx}')" #comments
         } | sed ':x;$!{N;s/\n/\t/;bx}'
     done #posts
 }
@@ -53,13 +53,13 @@ get_page() {
     local -r t="$(ucurl "$1")"
     local _tmp1
     echo "$1" #link
-    echo "$(hgrep 'h1 +itemprop="name"; a @p"%i\n"' <<< "$t")" #title
-    _tmp1="$(hgrep 'div +class="flex--item ws-nowrap mb8" @p"%(title)a\n"' <<< "$t")"
+    echo "$(hgrep 'h1 +itemprop="name"; a | "%i\n"' <<< "$t")" #title
+    _tmp1="$(hgrep 'div +class="flex--item ws-nowrap mb8" | "%(title)a\n"' <<< "$t")"
     echo "${_tmp1//[^0-9]/}" #views
-    echo "$(hgrep 'div +class="js-bookmark-count mt4" @p"%(data-value)a\n"' <<< "$t")" #bookmarks
-    echo "$(hgrep 'div +class="d-flex ps-relative fw-wrap"; a +class="post-tag" @p"%i\n"' <<< "$t" | sed ':x; $!{N;s/\n/\t/;bx}')" #tags
+    echo "$(hgrep 'div +class="js-bookmark-count mt4" | "%(data-value)a\n"' <<< "$t")" #bookmarks
+    echo "$(hgrep 'div +class="d-flex ps-relative fw-wrap"; a +class="post-tag" | "%i\n"' <<< "$t" | sed ':x; $!{N;s/\n/\t/;bx}')" #tags
     get_posts <<< "$t"
-    for n in $(hgrep 'div +class="s-pagination site1 themed pager-answers"; a +rel="" +href @p"'"$url"'%(href)a\n"' <<< "$t" | sort -u)
+    for n in $(hgrep 'div +class="s-pagination site1 themed pager-answers"; a +rel="" +href | "'"$url"'%(href)a\n"' <<< "$t" | sort -u)
     do
         ucurl "$n" | get_posts
     done
@@ -110,14 +110,14 @@ get_question_list() {
     local g t l
     g="$first"
     t="$(ucurl "$1?tab=newest&pagesize=50&page=$g")"
-    l="$(hgrep 'a +class="s-pagination--item js-pagination-item" @m"^[0-9][0-9]*$" @p"%i\n"' <<< "$t" | tail -n1)"
+    l="$(hgrep 'a +class="s-pagination--item js-pagination-item" @m"^[0-9][0-9]*$" | "%i\n"' <<< "$t" | tail -n1)"
     [ -z "$last" ] && last="$l"
     [ "$last" -gt "$l" ] && last="$l"
     echo "$last"
     while :
     do
         #[ -z "$(hgrep 'a +class="s-pagination--item js-pagination-item" +rel="next"' <<< "$t")" ] && break
-        for i in $(hgrep 'a +class="s-link" @p"'"$url"'%(href)a\n"' <<< "$t")
+        for i in $(hgrep 'a +class="s-link" | "'"$url"'%(href)a\n"' <<< "$t")
         do
             [ "$(jobs | wc -l)" -gt "$maxprocs" ] && wait %%
             {
@@ -141,13 +141,13 @@ get_tags() {
     local g t l
     g="$first"
     t="$(ucurl "$1?tab=populart&pagesize=50&page=$g")"
-    l="$(hgrep 'a +class="s-pagination--item js-pagination-item" @m"^[0-9][0-9]*$" @p"%i\n"' <<< "$t" | tail -n1)"
+    l="$(hgrep 'a +class="s-pagination--item js-pagination-item" @m"^[0-9][0-9]*$" | "%i\n"' <<< "$t" | tail -n1)"
     [ -z "$last" ] && last="$l"
     [ "$last" -gt "$l" ] && last="$l"
     echo "$last"
     while :
     do
-        for c in $(hgrep 'a +class="post-tag" +href @p"'"$url"'%(href)a\n"' <<< "$t")
+        for c in $(hgrep 'a +class="post-tag" +href | "'"$url"'%(href)a\n"' <<< "$t")
         do
             get_question_list "$c"
         done
