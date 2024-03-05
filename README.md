@@ -1,6 +1,6 @@
-# stackexchange
+# stackexchange-scraper
 
-A bash script for converting stackexchange forums to json.
+A bash script for scraping stackexchange forums in json.
 
 ## Requirements
 
@@ -9,7 +9,7 @@ A bash script for converting stackexchange forums to json.
 
 ## Installation
     
-    install -m 755 stackexchange /usr/bin
+    install -m 755 stackexchange-scraper /usr/bin
 
 ## Supported sites
 
@@ -31,7 +31,7 @@ Here's [json](example.json) from one of the most popular issues on [stackoverflo
 
 ## Usage
 
-    stackexchange directory [URLS...]
+    stackexchange-scraper directory [URLS...]
 
 All options should be specified before the directory.
 
@@ -43,23 +43,23 @@ Since ids of the questions overlap with different websites it is recommended to 
 
 Download all tags to directory x with delay of 0.2 second and randomness of 3 seconds
 
-    stackexchange -d 0.2 -r 3 x 'https://stackoverflow.com/tags'
+    stackexchange-scraper -d 0.2 -r 3 x 'https://stackoverflow.com/tags'
 
 Download all questions tagged python to directory x while using 5 processes
 
-    stackexchange -p 5 x 'https://stackoverflow.com/questions/tagged/python'
+    stackexchange-scraper -p 5 x 'https://stackoverflow.com/questions/tagged/python'
 
 Download all questions starting from 50th page to 75th page to directory x
 
-    stackexchange -f 50 -l 75 x 'https://stackoverflow.com'
+    stackexchange-scraper -f 50 -l 75 x 'https://stackoverflow.com'
 
 Download some questions to directory x
 
-    stackexchange x 'https://stackoverflow.com/questions/3737139/reference-what-does-this-symbol-mean-in-php' 'https://stackoverflow.com/questions/60174/how-can-i-prevent-sql-injection-in-php' 'https://stackoverflow.com/questions/391005/how-can-i-add-html-and-css-into-pdf'
+    stackexchange-scraper x 'https://stackoverflow.com/questions/3737139/reference-what-does-this-symbol-mean-in-php' 'https://stackoverflow.com/questions/60174/how-can-i-prevent-sql-injection-in-php' 'https://stackoverflow.com/questions/391005/how-can-i-add-html-and-css-into-pdf'
 
 Get some help
 
-    stackexchange -h
+    stackexchange-scraper -h
 
 ## Issues
 
