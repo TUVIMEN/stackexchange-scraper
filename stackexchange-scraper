@@ -14,49 +14,55 @@ ucurl() {
 
 get_posts() {
     tr -d '\r\n\t\a\f' | reliq '
-        div .post-layout; {
-            . div .js-vote-count data-value | "%(data-value)v\n",
-            . div .user-info m@v>"edited"; span .relativetime | "%(title)v\n",
-            . div .user-info m@"edited"; span .relativetime | "%(title)v\n",
+        .posts div .post-layout; {
+            .rating.i div .js-vote-count data-value | "%(data-value)v",
+            .date div .user-info m@v>"edited"; span .relativetime | "%(title)v",
+            .edited div .user-info m@"edited"; span .relativetime | "%(title)v",
 
-            . div .user-info m@v>"edited"; div .user-details; {
-                . * l@[1] c@[0] | "%i\n" / line [1],
-                . span .reputation-score | "%i\n" / tr ",",
-                . span title=w>gold; span .badgecount | "%i\n",
-                . span title=w>silver; span .badgecount | "%i\n",
-                . span title=w>bronze; span .badgecount | "%i\n"
-            } / tr "\n" "\a" echo "" "\n",
+            .author div .user-info m@v>"edited"; div .user-details; {
+                .name [0] * l@[1] c@[0] | "%i\n",
+                .reputation.u span .reputation-score | "%i"tr ",",
+                .gbadge.u span title=w>gold; span .badgecount | "%i",
+                .sbadge.u span title=w>silver; span .badgecount | "%i",
+                .bbadge.u span title=w>bronze; span .badgecount | "%i"
+            },
 
-            . div .user-info m@"edited"; div .user-details; {
-                . * l@[1] c@[0] | "%i\n" / line [1],
-                . span .reputation-score | "%i\n" / tr ",",
-                . span title=w>gold; span .badgecount | "%i\n",
-                . span title=w>silver; span .badgecount | "%i\n",
-                . span title=w>bronze; span .badgecount | "%i\n"
-            } / tr "\n" "\a" echo "" "\n",
+            .editor div .user-info m@"edited"; div .user-details; {
+                .name [0] * l@[1] c@[0] | "%i",
+                .reputation.u span .reputation-score | "%i\n" tr ",",
+                .gbadge.u span title=w>gold; span .badgecount | "%i",
+                .sbadge.u span title=w>silver; span .badgecount | "%i",
+                .bbadge.u span title=w>bronze; span .badgecount | "%i"
+            },
 
-            . div class="s-prose js-post-body" | "%i\n",
+            .content div class="s-prose js-post-body" | "%i",
 
-            . li #E>comment-[0-9]+; {
-                . div .comment-score; * c@[0] | "%i\n",
-                . span .comment-copy | "%i\n",
-                . span .comment-date; span title | "%(title)v\n" / sed "s/, L.*//",
-                . div; a | "%i\n" / line [1],
-                . a title | "%(title)v\n" / tr "0-9\n" "" "c"
-            } | tr "\n" "\f" echo "" "\a" / echo "" "\n"
-        } | tr "\n" "\t" echo "" "\n"
+            .comments li #E>comment-[0-9]+; {
+                .score.u div .comment-score; * c@[0] | "%i",
+                .content span .comment-copy | "%i",
+                .date span .comment-date; span title | "%(title)v" / sed "s/, L.*//",
+                .author div; [0] a | "%i",
+                .reputation.u a title | "%(title)v\n" / tr "0-9" "" "c"
+            } |
+        } |
     '
 }
 
 get_page() {
+    local -r rh="${1#*/questions/}"
+    local -r name="${rh%%/*}"
+    [ -e "$name" ] && return
+    echo "$1" >&2
     local -r t="$(ucurl "$1")"
     local _tmp1
-    echo "$1" #link
+
+    {
     reliq '
-        . h1 itemprop="name"; a | "%i\n",
-        . div class="flex--item ws-nowrap mb8" | "%(title)v\n" / tr "0-9\n" "" "c",
-        . div class="js-bookmark-count mt4" | "%(data-value)v\n",
-        . div .ps-relative; a .post-tag | "%i\t" / echo "" "\n"
+        .title h1 itemprop="name"; a | "%i\n",
+        .views.u div class="flex--item ws-nowrap mb8" | "%(title)v\n" / tr "0-9" "" "c",
+        .asked div class="flex--item ws-nowrap mr16 mb8" m@"Asked"; time itemprop="dateCreated" datetime | "%(datetime)v",
+        .bookmarks div class="js-bookmark-count mt4" | "%(data-value)v",
+        .tags.a div .ps-relative; a .post-tag | "%i\n"
     ' <<< "$t"
     get_posts <<< "$t"
     for n in $(reliq 'div .pager-answers [0]; a rel="" href | "'"$url"'%(href)v\n"' <<< "$t")
@@ -64,47 +70,7 @@ get_page() {
         echo "$n" >&2
         ucurl "$n" | get_posts
     done
-}
-
-get_json() {
-    local -r rh="${1#*/questions/}"
-    local -r name="${rh%%/*}"
-    [ -e "$name" ] && return
-    get_page "$1" | jq -RnMcs '
-        (inputs | split("\n")) as $lines | 
-
-        .["link"]=$lines[0] |
-        .["title"]=$lines[1] |
-        .["views"]=$lines[2] |
-        .["bookmarks"]=$lines[3] |
-        .["tags"]=($lines[4] | split("\t"))[:-1] |
-        .["posts"]=($lines[5:-1] | map(split("\t") | {
-            ("rating"):.[0],
-            ("date"):.[1],
-            ("edited"):.[2],
-            ("author"):(.[3] | split("")[:-1] | {
-                ("name"):.[0],
-                ("reputation"):.[1],
-                ("gbadge"):.[2],
-                ("sbadge"):.[3],
-                ("bbadge"):.[4]
-            }),
-            ("editor"):(.[4] | split("")[:-1] | {
-                ("name"):.[0],
-                ("reputation"):.[1],
-                ("gbadge"):.[2],
-                ("sbadge"):.[3],
-                ("bbadge"):.[4]
-            }),
-            ("content"):.[5],
-            ("comments"):(.[6] | split("")[:-1] | map(split("\f") | {
-                ("score"):.[0],
-                ("content"):.[1],
-                ("date"):.[2],
-                ("author"):.[3],
-                ("reputation"):.[4]
-            }))
-        }))' > "$name"
+    } | jq -srcM --arg 'link' "$1" '{"link":$link}+.[0]+{"posts":(.[1:] | map(.posts[]))}' > "$name"
     sleep "$delay" "$((RANDOM%random))"
 }
 
@@ -115,24 +81,23 @@ get_question_list() {
     l="$(reliq 'a class="s-pagination--item js-pagination-item" m@B>"^[0-9][0-9]*$" | "%i\n"' <<< "$t" | tail -n1)"
     [ -z "$last" ] && last="$l"
     [ "$last" -gt "$l" ] && last="$l"
-    echo "$last"
+    echo "$last" >&2
     while :
     do
         #[ -z "$(reliq 'a class="s-pagination--item js-pagination-item" rel="next"' <<< "$t")" ] && break
         for i in $(reliq 'a .s-link href=a>/questions/ | "'"$url"'%(href)v\n"' <<< "$t")
         do
             [ "$(jobs | wc -l)" -gt "$maxprocs" ] && wait %%
-            echo "$i"
-            get_json "$i" &
+            get_page "$i" &
         done
         wait
-        
-        #echo "$links" | parallel -j "$maxprocs" 'get_json {}'
-    
+
+        #echo "$links" | parallel -j "$maxprocs" 'get_page {}'
+
         ((g++))
         [ "$g" -gt "$last" ] && break
         sleep "$delay" "$((RANDOM%random))"
-        echo "$1?tab=newest&pagesize=50&page=$g"
+        echo "$1?tab=newest&pagesize=50&page=$g" >&2
         t="$(ucurl "$1?tab=newest&pagesize=50&page=$g")"
     done
 }
@@ -144,18 +109,18 @@ get_tags() {
     l="$(reliq 'a class="s-pagination--item js-pagination-item" m@B>"^[0-9][0-9]*$" | "%i\n"' <<< "$t" | tail -n1)"
     [ -z "$last" ] && last="$l"
     [ "$last" -gt "$l" ] && last="$l"
-    echo "$last"
+    echo "$last" >&2
     while :
     do
         for c in $(reliq 'a .post-tag href | "'"$url"'%(href)v\n"' <<< "$t")
         do
-            echo "$c"
-            #get_question_list "$c"
+            echo "$c" >&2
+            get_question_list "$c"
         done
         ((g++))
         [ "$g" -gt "$last" ] && break
         sleep "$delay" "$((RANDOM%random))"
-        echo "$1?tab=newest&pagesize=50&page=$g"
+        echo "$1?tab=newest&pagesize=50&page=$g" >&2
         t="$(ucurl "$1?tab=popular&pagesize=50&page=$g")"
     done
 }
@@ -171,7 +136,7 @@ usage() {
     printf 'Note that options ought to be specified before the directory.\n'
 }
 
-#export -f ucurl get_json
+#export -f ucurl get_page
 #export PARALLEL_SHELL="$(type -p 'bash')"
 
 while [ "$#" -gt 0 ]
@@ -204,7 +169,7 @@ do
         http?(s)://+(+([[:alnum:]]).)+([[:alpha:]])?([/]?(questions?(\?*))))
             get_question_list "$url/questions";;
         http?(s)://+(+([[:alnum:]]).)+([[:alpha:]])/questions/+([[:digit:]])?([/]?(*)))
-            get_json "$1";;
+            get_page "$1";;
         http?(s)://+(+([[:alnum:]]).)+([[:alpha:]])?([/]?(tags?(\?*))))
             get_tags "$url/tags";;
     esac
