@@ -1,3 +1,7 @@
+# Archive
+
+Any further development has been transfered to [forumscraper](https://github.com/TUVIMEN/forumscraper).
+
 # stackexchange-scraper
 
 A bash script for scraping stackexchange forums in json.
@@ -8,7 +12,7 @@ A bash script for scraping stackexchange forums in json.
  - [jq](https://github.com/stedolan/jq)
 
 ## Installation
-    
+
     install -m 755 stackexchange-scraper /usr/bin
 
 ## Supported sites
